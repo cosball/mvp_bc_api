@@ -1,0 +1,28 @@
+'use strict';
+
+
+module.exports = Object.freeze({
+
+    USE_SSL: true,
+
+    NEM_API_URL: 'http://localhost:3000',
+
+    NETWORK: 'MIJIN_TEST',
+
+    MOSAIC_ID: 'd525ad41d95fcf29',
+
+    BLACKLIST_MASTER_KEY: '3A012520CC01841D7556C0BF7AD7B03C52E1FDFA78D0DFE60B0FFDEA3C530C59',
+
+
+    USE_DB_API: true,
+
+    ACCESS_TOKEN: 'H2kfEO6GWjCsnGk5a2P3zEIEtJ7PFit9GAXVPnn7mGLdYMGSjTJEwxTL6EhfWfNn',
+
+    DB_API_URL: 'https://api.nemvault.com:8082/api',
+
+    MONGODB_URI: 'mongodb://scanDemoUserProd:a506035c0d7aa856300aa8062166cc08@localhost:27017/scanDemoProd',
+
+    MONGODB_OPTIONS: {useNewUrlParser: true, useCreateIndex: true},
+
+    LINE_LIMIT_PER_FILE: 100
+});

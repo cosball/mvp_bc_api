@@ -57,7 +57,7 @@ Mongoose.connect(Config.MONGODB_URI, Config.MONGODB_OPTIONS, function(err) {
   
         console.log('Institution saved in mongoDB successfully! : ' + v.id);
         
-        var sha256Hash = sha256(Config.BLACKLIST_MASTER_KEY + (v.id)).toUpperCase();
+        var sha256Hash = sha256(Config.NEM_MASTER_KEY + (v.id)).toUpperCase();
         const account = Account.createFromPrivateKey(sha256Hash, NetworkType.MIJIN_TEST);
 
         console.log("Institution NEM Account");

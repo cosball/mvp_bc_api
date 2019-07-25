@@ -51,25 +51,8 @@ exports.IsValidUser = function(username, password, access_token, cb_valid, cb_in
                                         {
                                                 if (!tokenArray || !Array.isArray(tokenArray))
                                                         return cb_invalid();
-
-                                                for (var i=0 ; i<tokenArray.length ; i++) {
-                                                        // log.debug(`${access_token}:${tokenArray[i].id}`);
-                                                        if (tokenArray[i].id == access_token && tokenArray[i].ttl != 0)
-                                                        {
-                                                                DBAPIinterface.ConfigLimitsFindOne(username,  
-                                                                        function(config_limit) 
-                                                                        {
-                                                                                cb_valid(user, config_limit);
-                                                                        }, 
-                                                                        function()
-                                                                        { 
-                                                                                cb_invalid();
-                                                                        }
-                                                                );
-                                                                return;
-                                                        }
-                                                }
-                                                return cb_invalid();;
+                                                else
+                                                        cb_valid(user);
                                         },
                                         function()
                                         {

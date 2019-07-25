@@ -153,7 +153,7 @@ exports.addSkinData = function (req, res) {
     res.locals = TranslogSchema.Create(transactionType, username, JSON.stringify(skindata, null, 2).replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\"'));
 
     DataInterface.IsValidUser(username, password, access_token,
-        function (user, config_limit) // Valid User
+        function (user) // Valid User
         {
             try {
                 // log.debug("** " + JSON.stringify(user, null, 2));
@@ -218,7 +218,7 @@ exports.checkAddress = function (req, res) {
     res.locals = TranslogSchema.Create("CheckAddress", username, [address, address_type]);
 
     DataInterface.IsValidUser(username, password, access_token,
-        function (user, config_limit) // Valid User
+        function (user) // Valid User
         {
             try {
                 // log.debug("** " + JSON.stringify(user, null, 2));
@@ -276,7 +276,7 @@ exports.getTransaction = function (req, res) {
     res.locals = TranslogSchema.Create("GetTransaction", username, transaction_hash);
 
     DataInterface.IsValidUser(username, password, access_token,
-        function (user, config_limit) // Valid User
+        function (user) // Valid User
         {
             try {
                 // log.debug("** " + JSON.stringify(user, null, 2));
@@ -315,7 +315,7 @@ exports.getBlock = function (req, res) {
     res.locals = TranslogSchema.Create("GetBlock", username, block);
 
     DataInterface.IsValidUser(username, password, access_token,
-        function (user, config_limit) // Valid User
+        function (user) // Valid User
         {
             try {
                 // log.debug("** " + JSON.stringify(user, null, 2));

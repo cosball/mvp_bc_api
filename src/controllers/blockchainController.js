@@ -43,6 +43,40 @@ const TranslogSchema = require('../mongo/translog_schema');
 
 const DataInterface = require('../dataInterface');
 
+exports.signup = function (req, res) {
+    log.debug(`signup():`);
+
+    var username = req.body.username;
+
+    // log.debug(`** ${username}:${password}`);
+
+    try {
+        var signupData = { username: username, rewardPoint: Math.floor(Math.random() * (3) + 1)};
+
+        var hash = gen_data_hash(signupData);
+        var nemData = { tx_type:'Signup', hash:hash };
+        var dataJson = JSON.stringify(nemData, null, 2).replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\"');
+
+        // log.debug("** " + JSON.stringify(nemData, null, 2));
+
+        add_to_nem(username, dataJson, signupData.rewardPoint,
+            function (transaction_hash) {
+                log.debug("TX Hash : " + transaction_hash);
+
+                signupData['tx_hash'] = transaction_hash;
+
+                return res.status(201).json(signupData);
+            },
+            function (err) {
+                return res.status(400).json({ error: { message: 'Invalid data:' + err } });
+            }
+        );
+    }
+    catch (e) {
+        res.status(500).json({ error: { message: 'Error:' + e } });
+    }
+}
+
 exports.login = function (req, res) {
     log.debug(`login():`);
 
@@ -163,14 +197,16 @@ exports.addSkinData = function (req, res) {
 
                 skindata['createdAt'] = Date.now();
                 skindata['username'] = username;
-                skindata['rewardPoint'] = Math.floor(Math.random() * (3 - 1) + 1);
+                skindata['rewardPoint'] = Math.floor(Math.random() * (3) + 1);
                 skindata['recommenedCosball'] = 'AA123';
 
                 var hash = gen_data_hash(skindata);
+                var nemData = { tx_type:'SkinData', hash:hash };
+                var dataJson = JSON.stringify(nemData, null, 2).replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\"');
 
-                // log.debug("** " + JSON.stringify(bl_entry, null, 2));
+                // log.debug("** " + JSON.stringify(nemData, null, 2));
 
-                add_to_list(username, hash, skindata.rewardPoint,
+                add_to_nem(username, dataJson, skindata.rewardPoint,
                     function (transaction_hash) {
                         log.debug("TX Hash : " + transaction_hash);
 
@@ -476,11 +512,11 @@ var get_address_list = function (res, user, num_of_rows, createdAt) {
 };
 
 // Done
-var add_to_list = function (username, data_hash, reward, cb_success, cb_error) {
-    log.trace(`add_to_list: ${username}:${data_hash}`);
+var add_to_nem = function (username, dataJson, reward, cb_success, cb_error) {
+    log.trace(`add_to_nem: ${username}:${dataJson}`);
     // log.debug(bl_entry);
 
-    if (!username || !data_hash) {
+    if (!username || !dataJson) {
         cb_error("Invalid data");
         return;
     }
@@ -495,7 +531,7 @@ var add_to_list = function (username, data_hash, reward, cb_success, cb_error) {
         Deadline.create(),
         recipientAddress,
         [new Mosaic(new MosaicId(Config.MOSAIC_ID), UInt64.fromUint(reward))],
-        PlainMessage.create(data_hash),
+        PlainMessage.create(dataJson),
         NetworkType.MIJIN_TEST);
 
     // 02 result.Signing the transaction

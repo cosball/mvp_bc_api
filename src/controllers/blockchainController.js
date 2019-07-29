@@ -486,7 +486,7 @@ var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
                         var transInfo = {
                             transaction_hash: el.transactionInfo.hash,
                             amount: utils.fmtCatapultValue(el.mosaics[0].amount),
-                            deadline: new Date(el.deadline.value),
+                            deadline: el.deadline.value,
                             message: JSON.parse(el.message.payload)
                         };
 

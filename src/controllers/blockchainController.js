@@ -51,10 +51,10 @@ exports.signup = function (req, res) {
     // log.debug(`** ${username}:${password}`);
 
     try {
-        var signupData = { username: username, rewardPoint: Math.floor(Math.random() * (3) + 1)};
+        var signupData = { username: username, rewardPoint: Math.floor(Math.random() * (3) + 1) };
 
         var hash = gen_data_hash(signupData);
-        var nemData = { tx_type:'Signup', hash:hash };
+        var nemData = { tx_type: 'Signup', hash: hash };
         var dataJson = JSON.stringify(nemData, null, 2).replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\"');
 
         // log.debug("** " + JSON.stringify(nemData, null, 2));
@@ -134,26 +134,67 @@ exports.getList = function (req, res) {
                 res.locals.User(user);
                 // log.debug("*--* " + JSON.stringify(user, null, 2));
 
-                if (typeof tx_hash == "undefined") {
-                    return get_address_list(res, user, num_of_rows, new Date("9999-12-31T23:59:00"));
-                }
-                else {
-                    var query = {
-                        where: { transactionHash: tx_hash },
-                        sort: { 'createdAt': 'desc' },
-                        limit: 1
-                    };
+                get_tx_list(username, num_of_rows, tx_hash, function (transData) {
+                    var retArr = [];
 
-                    DataInterface.SkinDataFind(query,
-                        function (skindata) {
-                            // log.debug("** " + JSON.stringify(skindata, null, 2));
-                            return get_address_list(res, user, num_of_rows, skindata[0].createdAt);
-                        },
-                        function (err) {
-                            return res.status(405).json({ error: { message: err } });
+                    for (const [index, trans] of transData.entries()) {
+                        // log.info(trans);
+                        var query = {
+                            where: { transactionHash: trans.transaction_hash },
+                            sort: { 'createdAt': 'desc' },
+                            limit: 1
                         }
-                    );
-                }
+
+                        new Promise((resolve, reject) => {
+                            DataInterface.SkinDataFind(query)
+                                .then(function (data) {
+                                    log.info(data[0]);
+                                    retArr.push(data[0]);
+                                    resolve();
+                                }, function (err) {
+                                    resolve();
+                                });
+                        });
+                    }
+                    res.status(200).json(retArr);
+                });
+            }
+            catch (e) {
+                res.status(500).json({ error: { message: 'Error:' + e } });
+            }
+        },
+        function () // Invalid User
+        {
+            return res.status(400).json({ error: { message: 'Invalid user_name or password.' } });
+        }
+    );
+};
+
+// Done
+exports.transactionList = function (req, res) {
+    log.debug(`transactionList(): ${req.url}`);
+
+    var access_token = req.query.access_token ? req.query.access_token : req.headers.authorization;
+
+    var username = req.query.requester ? req.query.requester : req.body.user_name;
+    var password = req.body.password;
+    var tx_hash = req.body.tx_hash;
+    var num_of_rows = typeof req.body.num_of_rows == "undefined" ? 1 : parseInt(req.body.num_of_rows);
+
+    log.debug(`** ${username}:${password}:${access_token}:${tx_hash}:${num_of_rows}`);
+
+    res.locals = TranslogSchema.Create("GetList", username, [tx_hash, num_of_rows]);
+
+    DataInterface.IsValidUser(username, password, access_token,
+        function (user) // Valid User
+        {
+            try {
+                res.locals.User(user);
+                // log.debug("*--* " + JSON.stringify(user, null, 2));
+
+                get_tx_list(username, num_of_rows, tx_hash, function (transData) {
+                    res.status(200).json(transData);
+                });
             }
             catch (e) {
                 res.status(500).json({ error: { message: 'Error:' + e } });
@@ -201,7 +242,7 @@ exports.addSkinData = function (req, res) {
                 skindata['recommenedCosball'] = 'AA123';
 
                 var hash = gen_data_hash(skindata);
-                var nemData = { tx_type:'SkinData', hash:hash };
+                var nemData = { tx_type: 'SkinData', hash: hash };
                 var dataJson = JSON.stringify(nemData, null, 2).replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\"');
 
                 // log.debug("** " + JSON.stringify(nemData, null, 2));
@@ -212,12 +253,12 @@ exports.addSkinData = function (req, res) {
 
                         var entry = SkinDataSchema.fromPostData(skindata);
                         entry.transactionHash = transaction_hash;
-                        
+
                         DataInterface.SkinDataSave(entry,
-                            function() {
+                            function () {
                                 return res.status(201).json(skindata);
                             },
-                            function(err) {
+                            function (err) {
                                 return res.status(500).json({ error: { message: 'Error:' + err } });
                             }
                         );
@@ -238,64 +279,6 @@ exports.addSkinData = function (req, res) {
     );
 };
 
-// Done
-exports.checkAddress = function (req, res) {
-    log.debug(`checkAddress():`);
-
-    var access_token = req.query.access_token ? req.query.access_token : req.headers.authorization;
-
-    var address = req.params.address;
-    var address_type = req.body.address_type;
-    var username = req.query.requester ? req.query.requester : req.body.user_name;
-    var password = req.body.password;
-
-    log.debug(`** ${username}:${password}:${address}:${address_type}`);
-
-    res.locals = TranslogSchema.Create("CheckAddress", username, [address, address_type]);
-
-    DataInterface.IsValidUser(username, password, access_token,
-        function (user) // Valid User
-        {
-            try {
-                // log.debug("** " + JSON.stringify(user, null, 2));
-                // log.debug("** " + JSON.stringify(config_limit, null, 2));
-                res.locals.User(user);
-
-                var query = {
-                    where: { address: address, addressType: address_type },
-                    sort: { 'createdAt': 'desc' },
-                    limit: 1
-                };
-
-                DataInterface.SkinDataFind(query,
-                    function (skindata) {
-                        if (!skindata)
-                            return res.status(404).json({ error: { message: 'Address not found.' } });
-
-                        return res.status(200).json(skindata);
-
-                        // const transactionHttp = new TransactionHttp(Config.NEM_API_URL);
-                        // transactionHttp.getTransaction(skindata.transactionHash).subscribe(
-                        //   transaction => return_checkAddress_result(res, transaction),
-                        //   err => res.status(404).json({error:{ message: 'Invalid transaction hash:' + skindata.transactionHash }})
-                        // );
-                    },
-                    function (err) {
-                        return res.status(404).json({ error: { message: 'Address not found.' } });
-                        // return res.status(405).json({ message: err });
-                    }
-                );
-            }
-            catch (e) {
-                res.status(500).json({ error: { message: 'Error:' + e } });
-            }
-        },
-        function () // Invalid User
-        {
-            return res.status(403).json({ error: { message: 'Invalid user_name or password.' } });
-        }
-    );
-};
 
 // Done
 exports.getTransaction = function (req, res) {
@@ -378,7 +361,7 @@ exports.getBlock = function (req, res) {
 
 
 
-var gen_data_hash = function(data) {
+var gen_data_hash = function (data) {
     log.debug('gen_data_hash');
 
     log.debug(data);
@@ -478,37 +461,45 @@ var return_checkAddress_result = function (res, transaction) {
 }
 
 // Done
-var get_address_list = function (res, user, num_of_rows, createdAt) {
-    log.debug('get_address_list: ');
+var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
+    log.debug('get_tx_list: ');
 
-    var query;
+    const accountHttp = new AccountHttp(Config.NEM_API_URL);
 
-    if (Config.USE_DB_API) {
-        query = {
-            where: { status: 1, createdAt: { lt: createdAt } },
-            sort: { 'createdAt': 'desc' },
-            limit: num_of_rows
-        };
-    }
-    else {
-        query = {
-            where: { status: 1, createdAt: { $lt: createdAt } },
-            sort: { 'createdAt': 'desc' },
-            limit: num_of_rows
-        };
-    }
+    const publicKey = sha256((username)).toUpperCase();
+    const publicAccount = PublicAccount.createFromPublicKey(publicKey, NetworkType.MIJIN_TEST);
 
-    DataInterface.SkinDataFind(query,
-        function (docs) {
-            if (docs.length == 0)
-                return res.status(404).json({ error: { message: 'No skindata found.' } });
+    const pageSize = num_of_rows; // Page size between 10 and 100, otherwise 10
 
-            return res.status(200).json(docs);
-        },
-        function (err) {
-            return res.status(404).json([]);
-        }
-    );
+    accountHttp
+        .transactions(publicAccount, new QueryParams(pageSize))
+        .subscribe((transactions, err) => {
+            if (err) {
+                res.json({ error: true, message: err.replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\\"') });
+            }
+            else {
+                var retArr = [];
+                for (const [index, el] of transactions.entries()) {
+                    // console.log(`get_list: ${element.message.payload}`);
+                    try {
+                        //   log.info(el);
+                        var transInfo = {
+                            transaction_hash: el.transactionInfo.hash,
+                            amount: utils.fmtCatapultValue(el.mosaics[0].amount),
+                            message: JSON.parse(el.message.payload)
+                        };
+
+                        retArr.push(transInfo)
+                    }
+                    catch (error) {
+                        // Ignore error for now
+                    }
+                }
+
+                // console.log(`get_list: ${retArr}`);
+                callback(retArr);
+            }
+        });
 };
 
 // Done

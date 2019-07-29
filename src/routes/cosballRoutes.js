@@ -14,7 +14,6 @@ module.exports = function (app) {
 
     app.route(basePath + '/logout/:access_token').post(blockchain.logout)
 
-    app.route(basePath + '/skin_data/').get(blockchain.getList)
 
     app
     .route(basePath + '/skin_data/get/:transaction_hash')
@@ -22,8 +21,11 @@ module.exports = function (app) {
 
     app.route(basePath + '/block/:block').get(blockchain.getBlock)
 
+    app.route(basePath + '/skin_data/').get(blockchain.getList)
 
     app.route(basePath + '/skin_data/add').post(blockchain.addSkinData)
+    
+    app.route(basePath + '/transactions/').get(blockchain.transactionList)
 
 
     app

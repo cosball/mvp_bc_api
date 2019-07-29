@@ -143,13 +143,13 @@ exports.SkinDataFind = function (query) {
                 if (resNew.data && resNew.data.length > 0)
                     resolve(resNew.data);
                 else
-                    reject('Not found');
+                    resolve('Not found');
             })
             .catch(function (err) {
                 // log.debug("*** SkinDataFind() " + err.message);
-                reject(err.message);
+                resolve(err.message);
             });
-    })
+    });
 }
 
 exports.SkinDataSave = function (skindata, cb_succeed, cb_failed) {

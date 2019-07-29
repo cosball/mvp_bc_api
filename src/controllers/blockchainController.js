@@ -135,7 +135,7 @@ exports.getList = function (req, res) {
                 // log.debug("*--* " + JSON.stringify(user, null, 2));
 
                 get_tx_list(username, num_of_rows, tx_hash, function (transData) {
-                    var retArr = [];
+                    var promiseArr = [];
 
                     for (const [index, trans] of transData.entries()) {
                         // log.info(trans);
@@ -145,18 +145,19 @@ exports.getList = function (req, res) {
                             limit: 1
                         }
 
-                        new Promise((resolve, reject) => {
-                            DataInterface.SkinDataFind(query)
-                                .then(function (data) {
-                                    log.info(data[0]);
-                                    retArr.push(data[0]);
-                                    resolve();
-                                }, function (err) {
-                                    resolve();
-                                });
-                        });
+                        promiseArr.push(DataInterface.SkinDataFind(query));
                     }
-                    res.status(200).json(retArr);
+
+                    Promise.all(promiseArr)
+                    .then(function(values) {
+                        var retArr = [];
+                        for (const [index, data] of values.entries()) {
+                            if (data.length > 0 && typeof data[0] != "string")
+                                retArr.push(data[0]);
+                        }
+                        // log.debug(values);
+                        res.status(200).json(retArr);
+                    });                    
                 });
             }
             catch (e) {

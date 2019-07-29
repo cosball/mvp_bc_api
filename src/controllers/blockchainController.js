@@ -179,7 +179,7 @@ exports.transactionList = function (req, res) {
     var username = req.query.requester ? req.query.requester : req.body.user_name;
     var password = req.body.password;
     var tx_hash = req.body.tx_hash;
-    var num_of_rows = typeof req.body.num_of_rows == "undefined" ? 1 : parseInt(req.body.num_of_rows);
+    var num_of_rows = typeof req.body.num_of_rows == "undefined" ? 10 : parseInt(req.body.num_of_rows);
 
     log.debug(`** ${username}:${password}:${access_token}:${tx_hash}:${num_of_rows}`);
 
@@ -486,6 +486,7 @@ var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
                         var transInfo = {
                             transaction_hash: el.transactionInfo.hash,
                             amount: utils.fmtCatapultValue(el.mosaics[0].amount),
+                            deadline: el.deadline,
                             message: JSON.parse(el.message.payload)
                         };
 

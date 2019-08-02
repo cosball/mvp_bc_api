@@ -104,7 +104,7 @@ exports.balance = function (req, res) {
                     .pipe(
                         mergeMap((_) => _)
                     )
-                    .subscribe(mosaic => res.status(500).json({ balance: mosaic.relativeAmount()*1000000 }),
+                    .subscribe(mosaic => res.status(200).json({ balance: mosaic.relativeAmount()*1000000 }),
                         err => res.status(500).json({ error: { message: 'Error:' + err } })
                     );
             }

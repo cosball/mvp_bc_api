@@ -104,7 +104,7 @@ exports.balance = function (req, res) {
                     .pipe(
                         mergeMap((_) => _)
                     )
-                    .subscribe(mosaic => res.status(200).json({ balance: mosaic.relativeAmount()*1000000 }),
+                    .subscribe(mosaic => res.status(200).json({ balance: mosaic.relativeAmount() * 1000000 }),
                         err => res.status(500).json({ error: { message: 'Error:' + err } })
                     );
             }
@@ -476,7 +476,9 @@ var return_checkAddress_result = function (res, transaction) {
     if (transaction == null)
         return res.status(404).json({ error: { message: 'Internal error occurred.' } });
 
-    // log.debug("** " + JSON.stringify(transaction, null, 2));              
+    // log.debug("** " + JSON.stringify(transaction, null, 2));   
+
+    console.log(transaction);
 
     var result = new CheckAddressResult();
 
@@ -503,6 +505,20 @@ var return_checkAddress_result = function (res, transaction) {
     return res.status(200).json(result);
 }
 
+var find_tx_id = function (tx_hash) {
+    return new Promise((resolve, reject) => {
+        if (!tx_hash)
+            resolve(null);
+
+        const transactionHttp = new TransactionHttp(Config.NEM_API_URL);
+        transactionHttp.getTransaction(tx_hash)
+            .subscribe(
+                transaction => resolve(transaction.transactionInfo.id),
+                err => resolve(null)
+            );
+    });
+}
+
 // Done
 var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
     log.debug('get_tx_list: ');
@@ -514,36 +530,48 @@ var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
 
     const pageSize = num_of_rows; // Page size between 10 and 100, otherwise 10
 
-    accountHttp
-        .transactions(publicAccount, new QueryParams(pageSize))
-        .subscribe((transactions, err) => {
-            if (err) {
-                res.json({ error: true, message: err.replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\\"') });
-            }
-            else {
-                var retArr = [];
-                for (const [index, el] of transactions.entries()) {
-                    // console.log(`get_list: ${element.message.payload}`);
-                    try {
-                        //   log.info(el);
-                        var transInfo = {
-                            transaction_hash: el.transactionInfo.hash,
-                            amount: utils.fmtCatapultValue(el.mosaics[0].amount)*1000000,
-                            deadline: el.deadline.value,
-                            message: JSON.parse(el.message.payload)
-                        };
+    find_tx_id(tx_hash).then(
+        function (tx_id) {
+            log.debug("tx_id:" + tx_id);
 
-                        retArr.push(transInfo)
-                    }
-                    catch (error) {
-                        // Ignore error for now
-                    }
-                }
+            var nemQuery;
+            if (tx_id)
+                nemQuery = new QueryParams(pageSize, tx_id);
+            else
+                nemQuery = new QueryParams(pageSize);
 
-                // console.log(`get_list: ${retArr}`);
-                callback(retArr);
-            }
-        });
+            accountHttp
+                .transactions(publicAccount, nemQuery)
+                .subscribe((transactions, err) => {
+                    if (err) {
+                        res.json({ error: true, message: err.replace(/(\r\n|\n|\r)/g, "").replace(/"/g, '\\"') });
+                    }
+                    else {
+                        var retArr = [];
+                        for (const [index, el] of transactions.entries()) {
+                            // console.log(`get_list: ${element.message.payload}`);
+                            try {
+                                //   log.info(el);
+                                var transInfo = {
+                                    transaction_hash: el.transactionInfo.hash,
+                                    amount: utils.fmtCatapultValue(el.mosaics[0].amount) * 1000000,
+                                    deadline: el.deadline.value,
+                                    message: JSON.parse(el.message.payload)
+                                };
+
+                                retArr.push(transInfo)
+                            }
+                            catch (error) {
+                                // Ignore error for now
+                            }
+                        }
+
+                        // console.log(`get_list: ${retArr}`);
+                        callback(retArr);
+                    }
+                });
+        }
+    )
 };
 
 // Done

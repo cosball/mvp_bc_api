@@ -8,7 +8,8 @@ module.exports = function (app) {
     var basePath = '/blockchain'
 
     // vault Routes
-    app.route(basePath + '/signup').post(blockchain.signup)
+    app.route(basePath + '/account/signup').post(blockchain.signup)
+    app.route(basePath + '/account/balance').get(blockchain.balance)
 
     app.route(basePath + '/login').post(blockchain.login)
 

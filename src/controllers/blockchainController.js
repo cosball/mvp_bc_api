@@ -1,7 +1,7 @@
 'use strict';
 
-const utf8 = require('utf8');
-const URL = require('url').URL;
+
+const operators = require('rxjs/operators');
 
 const nem2Sdk = require("nem2-sdk");
 const Account = nem2Sdk.Account,
@@ -17,16 +17,15 @@ const Account = nem2Sdk.Account,
     NetworkCurrencyMosaic = nem2Sdk.NetworkCurrencyMosaic,
     Mosaic = nem2Sdk.Mosaic,
     MosaicId = nem2Sdk.MosaicId,
+    MosaicHttp = nem2Sdk.MosaicHttp,
+    MosaicService = nem2Sdk.MosaicService,
+    mergeMap = operators.mergeMap,
     UInt64 = nem2Sdk.UInt64,
     QueryParams = nem2Sdk.QueryParams,
     PublicAccount = nem2Sdk.PublicAccount;
 
-const FS = require('fs');
-const CSVParse = require('csv-parse/lib/sync');
 const utils = require('../utils');
 const sha256 = require('sha256');
-const DateFormat = require('dateformat');
-const Excel = require('exceljs');
 
 var log4js = require('log4js');
 log4js.configure('./src/config/log4js.json');
@@ -36,8 +35,6 @@ const Config = require('../config/config');
 const CheckAddressResult = require('../models/CheckAddressResult');
 const GetBlock = require('../models/GetBlock');
 
-const Mongoose = require('mongoose');
-const UserSchema = require('../mongo/user_schema');
 const SkinDataSchema = require('../mongo/skindata_schema');
 const TranslogSchema = require('../mongo/translog_schema');
 
@@ -75,6 +72,51 @@ exports.signup = function (req, res) {
     catch (e) {
         res.status(500).json({ error: { message: 'Error:' + e } });
     }
+}
+
+exports.balance = function (req, res) {
+    log.debug(`balance():`);
+
+    var access_token = req.query.access_token ? req.query.access_token : req.headers.authorization;
+
+    var username = req.query.requester ? req.query.requester : req.body.user_name;
+    var password = req.body.password;
+
+    log.debug(`** ${username}:${password}:${access_token}`);
+
+    DataInterface.IsValidUser(username, password, access_token,
+        function (user) // Valid User
+        {
+            try {
+                // log.debug("*--* " + JSON.stringify(user, null, 2));
+
+                const url = Config.NEM_API_URL;
+                const accountHttp = new AccountHttp(url);
+                const mosaicHttp = new MosaicHttp(url);
+                const mosaicService = new MosaicService(accountHttp, mosaicHttp);
+
+                var usernameHash = sha256((username)).toUpperCase();
+                log.debug("PublicKey : " + usernameHash);
+                const address = Address.createFromPublicKey(usernameHash, NetworkType.MIJIN_TEST);
+
+                mosaicService
+                    .mosaicsAmountViewFromAddress(address)
+                    .pipe(
+                        mergeMap((_) => _)
+                    )
+                    .subscribe(mosaic => res.status(500).json({ balance: mosaic.relativeAmount()*1000000 }),
+                        err => res.status(500).json({ error: { message: 'Error:' + err } })
+                    );
+            }
+            catch (e) {
+                res.status(500).json({ error: { message: 'Error:' + e } });
+            }
+        },
+        function () // Invalid User
+        {
+            return res.status(400).json({ error: { message: 'Invalid user_name or password.' } });
+        }
+    );
 }
 
 exports.login = function (req, res) {
@@ -149,15 +191,15 @@ exports.getList = function (req, res) {
                     }
 
                     Promise.all(promiseArr)
-                    .then(function(values) {
-                        var retArr = [];
-                        for (const [index, data] of values.entries()) {
-                            if (data.length > 0 && typeof data[0] != "string")
-                                retArr.push(data[0]);
-                        }
-                        // log.debug(values);
-                        res.status(200).json(retArr);
-                    });                    
+                        .then(function (values) {
+                            var retArr = [];
+                            for (const [index, data] of values.entries()) {
+                                if (data.length > 0 && typeof data[0] != "string")
+                                    retArr.push(data[0]);
+                            }
+                            // log.debug(values);
+                            res.status(200).json(retArr);
+                        });
                 });
             }
             catch (e) {
@@ -486,7 +528,7 @@ var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
                         //   log.info(el);
                         var transInfo = {
                             transaction_hash: el.transactionInfo.hash,
-                            amount: utils.fmtCatapultValue(el.mosaics[0].amount),
+                            amount: utils.fmtCatapultValue(el.mosaics[0].amount)*1000000,
                             deadline: el.deadline.value,
                             message: JSON.parse(el.message.payload)
                         };
@@ -518,7 +560,6 @@ var add_to_nem = function (username, dataJson, reward, cb_success, cb_error) {
     var receiverHash = sha256((username)).toUpperCase();
     log.debug("PublicKey : " + receiverHash);
     const recipientAddress = Address.createFromPublicKey(receiverHash, NetworkType.MIJIN_TEST);
-
 
     const transferTransaction = TransferTransaction.create(
         Deadline.create(),

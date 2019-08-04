@@ -282,7 +282,7 @@ exports.addSkinData = function (req, res) {
                 skindata['createdAt'] = Date.now();
                 skindata['username'] = username;
                 skindata['rewardPoint'] = Math.floor(Math.random() * (3) + 1);
-                skindata['recommenedCosball'] = 'AA123';
+                skindata['recommenedCosball'] = find_cosball_product(skindata);
 
                 var hash = gen_data_hash(skindata);
                 var nemData = { tx_type: 'SkinData', hash: hash };
@@ -418,6 +418,16 @@ var gen_data_hash = function (data) {
     return hash;
 }
 
+var find_cosball_product = function(skindata)
+{
+    log.debug('find_cosball_product');
+
+    var first = String.fromCharCode(Math.floor(skindata.temperature + skindata.humidity + skindata.pressure/100) % 26 + 65);
+    var second = skindata.weather.toUpperCase()[0];
+    var num = Math.abs(700 - (skindata.moisture + skindata.oil + skindata.pore + (skindata.skinTemperature * 3) + skindata.skinTone + skindata.wrinkle));
+
+    return first + second + ('000'+num).slice(-3);
+}
 
 // Done
 var return_getBlock_result = function (res, blockHttp, block) {

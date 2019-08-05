@@ -22,6 +22,7 @@ const Account = nem2Sdk.Account,
     mergeMap = operators.mergeMap,
     UInt64 = nem2Sdk.UInt64,
     QueryParams = nem2Sdk.QueryParams,
+    Order = nem2Sdk.Order,
     PublicAccount = nem2Sdk.PublicAccount;
 
 const utils = require('../utils');
@@ -162,8 +163,10 @@ exports.getList = function (req, res) {
 
     var username = req.query.requester ? req.query.requester : req.body.user_name;
     var password = req.body.password;
-    var tx_hash = req.body.tx_hash;
-    var num_of_rows = typeof req.body.num_of_rows == "undefined" ? 1 : parseInt(req.body.num_of_rows);
+    var tx_hash = req.query.tx_hash ? req.query.tx_hash : req.body.tx_hash;
+    var order = req.query.order ? req.query.order : req.body.order;
+    var num_of_rows = req.query.num_of_rows ? req.query.num_of_rows : req.body.num_of_rows;
+    num_of_rows = num_of_rows ? parseInt(num_of_rows) : 1;
 
     log.debug(`** ${username}:${password}:${access_token}:${tx_hash}:${num_of_rows}`);
 
@@ -176,7 +179,7 @@ exports.getList = function (req, res) {
                 res.locals.User(user);
                 // log.debug("*--* " + JSON.stringify(user, null, 2));
 
-                get_tx_list(username, num_of_rows, tx_hash, function (transData) {
+                get_tx_list(username, num_of_rows, tx_hash, order, function (transData) {
                     var promiseArr = [];
 
                     for (const [index, trans] of transData.entries()) {
@@ -221,8 +224,10 @@ exports.transactionList = function (req, res) {
 
     var username = req.query.requester ? req.query.requester : req.body.user_name;
     var password = req.body.password;
-    var tx_hash = req.body.tx_hash;
-    var num_of_rows = typeof req.body.num_of_rows == "undefined" ? 10 : parseInt(req.body.num_of_rows);
+    var tx_hash = req.query.tx_hash ? req.query.tx_hash : req.body.tx_hash;
+    var order = req.query.order ? req.query.order : req.body.order;
+    var num_of_rows = req.query.num_of_rows ? req.query.num_of_rows : req.body.num_of_rows;
+    num_of_rows = num_of_rows ? parseInt(num_of_rows) : 1;
 
     log.debug(`** ${username}:${password}:${access_token}:${tx_hash}:${num_of_rows}`);
 
@@ -235,7 +240,7 @@ exports.transactionList = function (req, res) {
                 res.locals.User(user);
                 // log.debug("*--* " + JSON.stringify(user, null, 2));
 
-                get_tx_list(username, num_of_rows, tx_hash, function (transData) {
+                get_tx_list(username, num_of_rows, tx_hash, order, function (transData) {
                     res.status(200).json(transData);
                 });
             }
@@ -348,7 +353,7 @@ exports.getTransaction = function (req, res) {
                 const transactionHttp = new TransactionHttp(Config.NEM_API_URL);
                 transactionHttp.getTransaction(transaction_hash)
                     .subscribe(
-                        transaction => return_checkAddress_result(res, transaction),
+                        transaction => return_getTransaction_result(res, transaction),
                         err => res.status(404).json({ error: { message: 'Transaction not found:' + transaction_hash } })
                     );
             }
@@ -480,8 +485,8 @@ var return_getBlock_transactions = function (res, result, transactions) {
 }
 
 // Done
-var return_checkAddress_result = function (res, transaction) {
-    log.debug('return_checkAddress_result: ');
+var return_getTransaction_result = function (res, transaction) {
+    log.debug('return_getTransaction_result: ');
 
     if (transaction == null)
         return res.status(404).json({ error: { message: 'Internal error occurred.' } });
@@ -530,7 +535,7 @@ var find_tx_id = function (tx_hash) {
 }
 
 // Done
-var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
+var get_tx_list = function (username, num_of_rows, tx_hash, order, callback) {
     log.debug('get_tx_list: ');
 
     const accountHttp = new AccountHttp(Config.NEM_API_URL);
@@ -543,12 +548,9 @@ var get_tx_list = function (username, num_of_rows, tx_hash, callback) {
     find_tx_id(tx_hash).then(
         function (tx_id) {
             log.debug("tx_id:" + tx_id);
+            log.debug("order:" + order);
 
-            var nemQuery;
-            if (tx_id)
-                nemQuery = new QueryParams(pageSize, tx_id);
-            else
-                nemQuery = new QueryParams(pageSize);
+            var nemQuery = new QueryParams(pageSize, tx_id, Order.DESC);
 
             accountHttp
                 .transactions(publicAccount, nemQuery)

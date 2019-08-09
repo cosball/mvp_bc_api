@@ -105,7 +105,7 @@ exports.balance = function (req, res) {
                     .pipe(
                         mergeMap((_) => _)
                     )
-                    .subscribe(mosaic => res.status(200).json({ balance: mosaic.relativeAmount() * 1000000 }),
+                    .subscribe(mosaic => res.status(200).json({ address: usernameHash, balance: mosaic.relativeAmount() * 1000000 }),
                         err => res.status(500).json({ error: { message: 'Error:' + err } })
                     );
             }
@@ -423,15 +423,40 @@ var gen_data_hash = function (data) {
     return hash;
 }
 
-var find_cosball_product = function(skindata)
-{
+var find_cosball_product = function (skindata) {
     log.debug('find_cosball_product');
 
-    var first = String.fromCharCode(Math.floor(skindata.temperature + skindata.humidity + skindata.pressure/100) % 26 + 65);
+    var first = String.fromCharCode(Math.floor(skindata.temperature + skindata.humidity + skindata.pressure / 100) % 26 + 65);
     var second = skindata.weather.toUpperCase()[0];
     var num = Math.abs(700 - (skindata.moisture + skindata.oil + skindata.pore + (skindata.skinTemperature * 3) + skindata.skinTone + skindata.wrinkle));
 
-    return first + second + ('000'+num).slice(-3);
+    var dataArr = [
+        { code: 'A', value: skindata.moisture },
+        { code: 'B', value: skindata.oil },
+        { code: 'C', value: skindata.pore },
+        { code: 'D', value: skindata.skinTemperature },
+        { code: 'E', value: skindata.skinTone },
+        { code: 'F', value: skindata.wrinkle }
+    ];
+    dataArr.sort((a, b) => a.value - b.value);
+
+    var products = [];
+    for (var i = 0; i < 4; i++) {
+        products.push(dataArr[i].code + (Math.floor(dataArr[i].value / 20) + 1))
+    }
+
+    products.sort((a, b) => {
+        if (a < b) {
+            return -1;
+        }
+        if (a > b) {
+            return 1;
+        }
+
+        return 0;
+    });
+
+    return products.join(',');
 }
 
 // Done
@@ -507,7 +532,7 @@ var return_getTransaction_result = function (res, transaction) {
     for (var i = 0; i < transaction.mosaics.length; i++) {
         result.mosaics.push({
             mosaic_id: utils.fmtCatapultId(transaction.mosaics[i].id.id),
-            quantity: utils.fmtCatapultValue(transaction.mosaics[i].amount)
+            quantity: utils.fmtCatapultValue(transaction.mosaics[i].amount) * 1000000
         });
     }
 

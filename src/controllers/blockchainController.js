@@ -27,6 +27,7 @@ const Account = nem2Sdk.Account,
 
 const utils = require('../utils');
 const sha256 = require('sha256');
+var crypto = require('crypto');
 
 var log4js = require('log4js');
 log4js.configure('./src/config/log4js.json');
@@ -44,12 +45,34 @@ const DataInterface = require('../dataInterface');
 exports.signup = function (req, res) {
     log.debug(`signup():`);
 
+    var access_token = req.query.access_token ? req.query.access_token : req.headers.authorization;
     var username = req.body.username;
+    var encToken = req.body.token;
 
     // log.debug(`** ${username}:${password}`);
 
     try {
+        if (!encToken) {
+            return res.status(400).json({ error: { message: 'Invalid request' } });
+        }
+
+        var token = decryptToken(encToken);
+        if (!token) {
+            return res.status(400).json({ error: { message: 'Invalid request' } });
+        }
+
+        var textParts = token.split(',');
+        // console.log("*** " + username + "," + access_token)
+        // console.log("*** " + textParts[2] + "," + textParts[0])
+        // console.log(Date.now() - textParts[1]);
+        if (textParts[2] !== username || access_token !== textParts[0] || Date.now() - textParts[1] > 60000) {
+            return res.status(400).json({ error: { message: 'Invalid request' } });
+        }
+
         var signupData = { username: username, rewardPoint: Math.floor(Math.random() * (3) + 1) };
+
+        // console.log("Success");
+        // return res.status(201).json(signupData);
 
         var hash = gen_data_hash(signupData);
         var nemData = { tx_type: 'Signup', hash: hash };
@@ -647,3 +670,16 @@ var add_to_nem = function (username, dataJson, reward, cb_success, cb_error) {
         .subscribe(x => cb_success(signedTransaction.hash), err => cb_error(err));
 };
 
+const ENCRYPTION_KEY = 'Writing objects: 100% (5/5), 600';
+function decryptToken(text) {
+    // console.log('decrypt:' + text)
+    let textParts = text.split(':');
+    let iv = Buffer.from(textParts.shift(), 'hex');
+    let encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+    let decrypted = decipher.update(encryptedText);
+
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+    return decrypted.toString();
+}

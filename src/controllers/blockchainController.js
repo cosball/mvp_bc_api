@@ -264,6 +264,11 @@ exports.transactionList = function (req, res) {
                 // log.debug("*--* " + JSON.stringify(user, null, 2));
 
                 get_tx_list(username, num_of_rows, tx_hash, order, function (transData) {
+                    for(const [index, trans] of transData.entries()) {
+                        // Convert deadline(localtime) to UTC
+                        // ToDO: need to calculate time with system timezone offset
+                        trans.deadline = trans.deadline.minusHours(10) + "Z";
+                    }
                     res.status(200).json(transData);
                 });
             }
@@ -559,6 +564,7 @@ var return_getTransaction_result = function (res, transaction) {
         });
     }
 
+    log.debug(transaction.deadline.value);
     result.deadline = transaction.deadline.value;
     result.message = {
         message_type: transaction.message.type,
